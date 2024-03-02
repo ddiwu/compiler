@@ -191,22 +191,78 @@ void CodeGen::gen_prologue() {
 
 void CodeGen::gen_epilogue() {
     // TODO 根据你的理解设定函数的 epilogue
-    throw not_implemented_error{__FUNCTION__};
+    auto exit_label = context.func->get_name() + "_exit";  // Enhance
+    append_inst(exit_label, ASMInstruction::Label);
+    if (IS_IMM_12(static_cast<int>(context.frame_size))) {
+        append_inst("addi.d $sp, $sp, " +
+                    std::to_string(static_cast<int>(context.frame_size)));
+    } else {
+        load_large_int64(context.frame_size, Reg::t(0));
+        append_inst("add.d $sp, $sp, $t0");
+    }
+    append_inst("ld.d $ra, $sp, -8");
+    append_inst("ld.d $fp, $sp, -16");
+    append_inst("jr $ra");
+    //throw not_implemented_error{__FUNCTION__};
 }
 
 void CodeGen::gen_ret() {
     // TODO 函数返回，思考如何处理返回值、寄存器备份，如何返回调用者地址
-    throw not_implemented_error{__FUNCTION__};
+    auto* retInst = static_cast<ReturnInst*>(context.inst);
+    if (retInst->is_void_ret()) {
+        append_inst("addi.d $a0, $zero, 0");  // Clear $a0
+    } else if (retInst->get_operand(0)->get_type()->is_float_type()) {
+        load_to_freg(retInst->get_operand(0), FReg::fa(0));
+    } else {
+        load_to_greg(retInst->get_operand(0), Reg::a(0));
+    }
+    auto exit_label = context.func->get_name() + "_exit";  // Enhance
+    append_inst("b " + exit_label);
+    //throw not_implemented_error{__FUNCTION__};
+}
+
+void CodeGen::insert_phi(Instruction *ins) {
+    if (!ins->is_phi()) {
+        return;
+    }
+    auto* phi = static_cast<PhiInst*>(ins);
+    for (int i = 0; i < phi->get_operands().size() - 1; i += 2) {
+        if (static_cast<BasicBlock*>(phi->get_operand(i + 1)) == context.inst->get_parent()) {
+            auto type = phi->get_operand(i)->get_type();
+            if (type->is_integer_type()) {
+                load_to_greg(phi->get_operand(i), Reg::t(8));
+                store_from_greg(phi, Reg::t(8));
+            } else if (type->is_float_type()) {
+                load_to_freg(phi->get_operand(i), FReg::ft(8));
+                store_from_freg(phi, FReg::ft(8));
+            }
+            return;
+        }
+    }
 }
 
 void CodeGen::gen_br() {
-    auto *branchInst = static_cast<BranchInst *>(context.inst);
+    auto* branchInst = static_cast<BranchInst*>(context.inst);
     if (branchInst->is_cond_br()) {
-        // TODO 补全条件跳转的情况
-        throw not_implemented_error{__FUNCTION__};
+        // DONE: 补全条件跳转的情况
+        load_to_greg(branchInst->get_operand(0), Reg::t(0));
+        auto* trueBB = static_cast<BasicBlock*>(branchInst->get_operand(1));
+        auto* falseBB = static_cast<BasicBlock*>(branchInst->get_operand(2));
+        for (auto& ins : trueBB->get_instructions()) {
+            insert_phi(&ins);
+        }
+        for (auto& ins : falseBB->get_instructions()) {
+            insert_phi(&ins);
+        }
+        append_inst("bstrpick.d $t1, $t0, 0, 0");
+        append_inst("bnez", {Reg::t(1).print(), label_name(trueBB)});
+        append_inst("b " + label_name(falseBB));
     } else {
-        auto *branchbb = static_cast<BasicBlock *>(branchInst->get_operand(0));
-        append_inst("b " + label_name(branchbb));
+        auto* branchBB = static_cast<BasicBlock*>(branchInst->get_operand(0));
+        for (auto& ins : branchBB->get_instructions()) {
+            insert_phi(&ins);
+        }
+        append_inst("b " + label_name(branchBB));
     }
 }
 
