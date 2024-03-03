@@ -47,6 +47,7 @@ class CodeGen {
 
     void gen_prologue();
     void gen_ret();
+    void insert_phi(Instruction *);
     void gen_br();
     void gen_binary();
     void gen_float_binary();

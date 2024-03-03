@@ -1,0 +1,14 @@
+==========./testcases/0-io.cminus==========
+==========./testcases/1-return.cminus==========
+==========./testcases/2-calculate.cminus==========
+==========./testcases/3-output.cminus==========
+==========./testcases/4-if.cminus==========
+==========./testcases/5-while.cminus==========
+==========./testcases/6-array.cminus==========
+==========./testcases/7-function.cminus==========
+==========./testcases/8-store.cminus==========
+==========./testcases/9-fibonacci.cminus==========
+==========./testcases/10-float.cminus==========
+==========./testcases/11-floatcall.cminus==========
+==========./testcases/12-global.cminus==========
+==========./testcases/13-complex.cminus==========
